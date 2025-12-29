@@ -1,33 +1,28 @@
-
 import React, { useState, useEffect } from 'react';
-import { Vehicle, VehicleType, MaintenanceRecord } from './types';
+import { Vehicle, MaintenanceRecord } from './types';
 import { Dashboard } from './components/Dashboard';
 import { VehicleForm } from './components/VehicleForm';
 import { MaintenanceForm } from './components/MaintenanceForm';
 import { AIAssistant } from './components/AIAssistant';
 import { MaintenanceHistoryModal } from './components/MaintenanceHistoryModal';
 import { UsageUpdateModal } from './components/UsageUpdateModal';
+import { Login } from './components/Login';
 import { 
   LayoutDashboard, 
   Truck, 
   PlusCircle, 
   Sparkles, 
   Settings,
-  Clock,
-  Navigation,
   LogOut,
   Bell,
-  ChevronRight,
-  Calendar,
-  History,
-  Hash,
+  RefreshCw,
   Edit2,
-  Trash2,
-  ShieldCheck,
-  RefreshCw
+  Trash2
 } from 'lucide-react';
 
 const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginError, setLoginError] = useState('');
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'fleet' | 'ai'>('dashboard');
   const [isAddingVehicle, setIsAddingVehicle] = useState(false);
@@ -40,11 +35,32 @@ const App: React.FC = () => {
   useEffect(() => {
     const saved = localStorage.getItem('fleet_data');
     if (saved) setVehicles(JSON.parse(saved));
+    
+    const auth = sessionStorage.getItem('fleet_auth');
+    if (auth === 'true') setIsAuthenticated(true);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('fleet_data', JSON.stringify(vehicles));
-  }, [vehicles]);
+    if (isAuthenticated) {
+      localStorage.setItem('fleet_data', JSON.stringify(vehicles));
+    }
+  }, [vehicles, isAuthenticated]);
+
+  const handleLogin = (password: string) => {
+    const validCode = process.env.COMPANY_CODE || '1234';
+    if (password === validCode) {
+      setIsAuthenticated(true);
+      sessionStorage.setItem('fleet_auth', 'true');
+      setLoginError('');
+    } else {
+      setLoginError('Codice non valido. Riprova.');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    sessionStorage.removeItem('fleet_auth');
+  };
 
   const handleSaveVehicle = (v: Vehicle) => {
     const newVehicle = { ...v, id: v.id || crypto.randomUUID(), maintenanceHistory: v.maintenanceHistory || [] };
@@ -63,7 +79,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteVehicle = (id: string) => {
-    if (window.confirm('Sei sicuro di voler eliminare questo mezzo dalla flotta? Questa azione è irreversibile.')) {
+    if (window.confirm('Sei sicuro di voler eliminare questo mezzo dalla flotta?')) {
       setVehicles(prev => prev.filter(v => v.id !== id));
       setEditVehicleId(null);
     }
@@ -84,6 +100,10 @@ const App: React.FC = () => {
     setIsAddingMaintenance(false);
   };
 
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} error={loginError} />;
+  }
+
   const NavItem = ({ id, icon: Icon, label }: { id: typeof activeTab, icon: any, label: string }) => (
     <button 
       onClick={() => setActiveTab(id)}
@@ -100,8 +120,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
-      
-      {/* Sidebar - Desktop Only */}
       <aside className="hidden lg:flex w-72 bg-white border-r h-screen sticky top-0 flex-col p-6 space-y-8">
         <div className="flex items-center gap-3 px-2">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-xl">
@@ -109,29 +127,24 @@ const App: React.FC = () => {
           </div>
           <h1 className="text-xl font-black tracking-tight text-gray-900">FleetPro</h1>
         </div>
-
         <nav className="flex-1 space-y-2">
           <NavItem id="dashboard" icon={LayoutDashboard} label="Dashboard" />
           <NavItem id="fleet" icon={Truck} label="La tua Flotta" />
           <NavItem id="ai" icon={Sparkles} label="Intelligenza AI" />
         </nav>
-
         <div className="pt-6 border-t space-y-2">
           <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-100 w-full transition-colors">
             <Settings size={20} />
             <span className="text-sm font-semibold">Impostazioni</span>
           </button>
-          <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 w-full transition-colors">
+          <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 w-full transition-colors">
             <LogOut size={20} />
             <span className="text-sm font-semibold">Esci</span>
           </button>
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-screen overflow-y-auto">
-        
-        {/* Top Header - Responsive */}
         <header className="bg-white/80 backdrop-blur-md border-b px-4 lg:px-8 py-4 sticky top-0 z-30 flex items-center justify-between">
           <div className="lg:hidden flex items-center gap-2">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
@@ -139,13 +152,11 @@ const App: React.FC = () => {
             </div>
             <h1 className="text-lg font-bold">FleetPro</h1>
           </div>
-          
           <div className="hidden lg:block">
             <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest">
               {activeTab === 'dashboard' ? 'Overview Aziendale' : activeTab === 'fleet' ? 'Gestione Parco Mezzi' : 'AI Analysis'}
             </h2>
           </div>
-
           <div className="flex items-center gap-3">
             <button className="p-2 text-gray-400 hover:bg-gray-100 rounded-full relative">
               <Bell size={20} />
@@ -157,7 +168,6 @@ const App: React.FC = () => {
 
         <main className="flex-1 p-4 lg:p-8 max-w-6xl mx-auto w-full pb-28 lg:pb-8">
           {activeTab === 'dashboard' && <Dashboard vehicles={vehicles} />}
-
           {activeTab === 'fleet' && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -165,15 +175,10 @@ const App: React.FC = () => {
                   <h2 className="text-3xl font-black text-gray-900">La tua Flotta</h2>
                   <p className="text-gray-500">Gestisci {vehicles.length} mezzi aziendali</p>
                 </div>
-                <button 
-                  onClick={() => setIsAddingVehicle(true)}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-2xl flex items-center justify-center gap-2 font-bold shadow-xl shadow-blue-200 hover:bg-blue-700 hover:-translate-y-0.5 transition-all active:scale-95"
-                >
-                  <PlusCircle size={20} />
-                  Nuovo Mezzo
+                <button onClick={() => setIsAddingVehicle(true)} className="bg-blue-600 text-white px-6 py-3 rounded-2xl flex items-center justify-center gap-2 font-bold shadow-xl shadow-blue-200">
+                  <PlusCircle size={20} /> Nuovo Mezzo
                 </button>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {vehicles.map(v => (
                   <div key={v.id} className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all group relative">
@@ -182,158 +187,67 @@ const App: React.FC = () => {
                         {v.photo ? (
                           <img src={v.photo} alt={v.model} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-300">
-                            <Truck size={48} />
-                          </div>
+                          <div className="w-full h-full flex items-center justify-center text-gray-300"><Truck size={48} /></div>
                         )}
                         <div className="absolute top-3 left-3 flex flex-col gap-1">
-                          <span className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-wider shadow-sm ${
-                            v.type === VehicleType.ROAD ? 'bg-indigo-600/90 text-white backdrop-blur-md' : 'bg-orange-600/90 text-white backdrop-blur-md'
-                          }`}>
-                            {v.type === VehicleType.ROAD ? 'Stradale' : 'Edile'}
-                          </span>
-                          <span className="bg-gray-900/90 text-white text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-wider backdrop-blur-md flex items-center gap-1">
-                            <Hash size={10}/> {v.vehicleNumber || 'S/N'}
+                          <span className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-wider shadow-sm ${v.type === 'ROAD' ? 'bg-indigo-600/90 text-white' : 'bg-orange-600/90 text-white'}`}>
+                            {v.type === 'ROAD' ? 'Stradale' : 'Edile'}
                           </span>
                         </div>
-                        
-                        {/* Edit Button overlay */}
-                        <button 
-                          onClick={() => setEditVehicleId(v.id)}
-                          className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-md text-gray-700 rounded-xl shadow-sm hover:bg-blue-600 hover:text-white transition-all opacity-0 group-hover:opacity-100"
-                          title="Modifica impostazioni mezzo"
-                        >
-                          <Edit2 size={16} />
-                        </button>
+                        <button onClick={() => setEditVehicleId(v.id)} className="absolute top-3 right-3 p-2 bg-white/90 text-gray-700 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"><Edit2 size={16} /></button>
                       </div>
-                      
                       <div className="p-6 flex-1 flex flex-col justify-between">
                         <div>
                           <div className="flex justify-between items-start mb-2">
                             <div className="flex-1">
+                              <h3 className="text-xl font-extrabold text-gray-900">{v.brand} {v.model}</h3>
+                              <p className="text-sm font-mono text-gray-400 mt-1 uppercase">{v.licensePlate || 'N°: ' + v.vehicleNumber}</p>
+                            </div>
+                            <div className="text-right">
                               <div className="flex items-center gap-2">
-                                <h3 className="text-xl font-extrabold text-gray-900 leading-tight">{v.brand} {v.model}</h3>
-                                <button 
-                                  onClick={() => setEditVehicleId(v.id)}
-                                  className="lg:hidden text-gray-400 hover:text-blue-600"
-                                >
-                                  <Edit2 size={14} />
-                                </button>
+                                <button onClick={() => setUpdatingUsageVehicleId(v.id)} className="p-2.5 bg-blue-600 text-white rounded-xl active:scale-95 transition-transform"><RefreshCw size={18} /></button>
+                                <p className="text-2xl font-black text-blue-600">{v.currentUsage.toLocaleString()}</p>
                               </div>
-                              <p className="text-sm font-mono text-gray-400 mt-1 uppercase tracking-tighter">{v.licensePlate || 'Targa non presente'}</p>
-                            </div>
-                            <div className="text-right flex flex-col items-end">
-                              <div className="flex items-center gap-2">
-                                <button 
-                                  onClick={() => setUpdatingUsageVehicleId(v.id)}
-                                  className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95"
-                                  title={`Aggiorna ${v.type === VehicleType.ROAD ? 'Kilometri' : 'Ore'}`}
-                                >
-                                  <RefreshCw size={18} />
-                                </button>
-                                <p className="text-2xl font-black text-blue-600 tracking-tighter leading-none">{v.currentUsage.toLocaleString()}</p>
-                              </div>
-                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{v.type === VehicleType.ROAD ? 'Kilometri' : 'Ore Lavoro'}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4 mt-4 py-3 border-y border-gray-50">
-                            <div className="flex flex-col">
-                              <span className="text-[10px] text-gray-400 font-bold uppercase flex items-center gap-1"><Clock size={10}/> Manutenzione</span>
-                              <span className="text-sm font-semibold">{v.maintenanceIntervalMonths} mesi</span>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-[10px] text-gray-400 font-bold uppercase flex items-center gap-1"><ShieldCheck size={10}/> Revisione</span>
-                              <span className="text-sm font-semibold">{v.type === VehicleType.ROAD ? `${v.inspectionIntervalMonths || 24} mesi` : 'N/A'}</span>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">{v.type === 'ROAD' ? 'Km' : 'Ore'}</p>
                             </div>
                           </div>
                         </div>
-
                         <div className="mt-6 flex flex-col gap-2">
                           <div className="flex gap-2">
-                            <button 
-                              onClick={() => {
-                                setSelectedVehicleId(v.id);
-                                setIsAddingMaintenance(true);
-                              }}
-                              className="flex-1 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest py-3 rounded-xl hover:bg-blue-600 transition-all active:scale-95 shadow-sm"
-                            >
-                              Intervento
-                            </button>
-                            <button 
-                              onClick={() => {
-                                setViewHistoryVehicleId(v.id);
-                              }}
-                              className="flex-1 bg-gray-100 text-gray-600 text-[10px] font-black uppercase tracking-widest py-3 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
-                            >
-                              <History size={14} /> Cronologia
-                            </button>
+                            <button onClick={() => { setSelectedVehicleId(v.id); setIsAddingMaintenance(true); }} className="flex-1 bg-gray-900 text-white text-[10px] font-black uppercase py-3 rounded-xl transition-colors hover:bg-blue-600">Intervento</button>
+                            <button onClick={() => setViewHistoryVehicleId(v.id)} className="flex-1 bg-gray-100 text-gray-600 text-[10px] font-black uppercase py-3 rounded-xl transition-colors hover:bg-gray-200">Cronologia</button>
                           </div>
-                          <button 
-                             onClick={() => {
-                               setSelectedVehicleId(v.id);
-                               setIsAddingMaintenance(true);
-                             }}
-                             className="w-full py-2 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-100 transition-all flex items-center justify-center gap-2 border border-blue-100"
-                          >
-                             <Calendar size={12} /> Programma Prossima (Calendar)
-                          </button>
                         </div>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-              
-              {vehicles.length === 0 && (
-                <div className="text-center py-24 bg-white rounded-[2rem] border-2 border-dashed border-gray-100">
-                  <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Truck className="text-gray-300" size={40} />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-800">Nessun mezzo in flotta</h3>
-                  <p className="text-gray-500 max-w-xs mx-auto mt-2">Inizia aggiungendo i tuoi mezzi aziendali per monitorarne la manutenzione.</p>
-                  <button 
-                    onClick={() => setIsAddingVehicle(true)}
-                    className="mt-6 text-blue-600 font-bold hover:text-blue-700 transition-colors inline-flex items-center gap-2"
-                  >
-                    Aggiungi ora il primo mezzo <ChevronRight size={16}/>
-                  </button>
-                </div>
-              )}
             </div>
           )}
-
           {activeTab === 'ai' && <AIAssistant vehicles={vehicles} />}
         </main>
       </div>
 
-      {/* Modals */}
       {(isAddingVehicle || editVehicleId) && (
         <div className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-md p-4 flex items-center justify-center animate-in fade-in duration-300">
-          <div className="w-full max-w-2xl transform animate-in zoom-in-95 duration-300 relative">
+          <div className="w-full max-w-2xl relative">
             <VehicleForm 
               initialData={editVehicleId ? vehicles.find(v => v.id === editVehicleId) : undefined}
               onSave={handleSaveVehicle} 
-              onCancel={() => {
-                setIsAddingVehicle(false);
-                setEditVehicleId(null);
-              }} 
+              onCancel={() => { setIsAddingVehicle(false); setEditVehicleId(null); }} 
             />
             {editVehicleId && (
-              <button 
-                onClick={() => handleDeleteVehicle(editVehicleId)}
-                className="absolute -bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-2 text-red-500 font-bold hover:text-red-600 bg-red-50 px-6 py-3 rounded-2xl transition-all"
-              >
-                <Trash2 size={18} /> Elimina Mezzo dalla Flotta
+              <button onClick={() => handleDeleteVehicle(editVehicleId)} className="absolute -bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-2 text-red-500 font-bold bg-red-50 px-6 py-3 rounded-2xl transition-all hover:bg-red-100">
+                <Trash2 size={18} /> Elimina Mezzo
               </button>
             )}
           </div>
         </div>
       )}
-
       {isAddingMaintenance && selectedVehicleId && (
         <div className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-md p-4 flex items-center justify-center animate-in fade-in duration-300">
-          <div className="w-full max-w-xl transform animate-in zoom-in-95 duration-300">
+          <div className="w-full max-w-xl">
             <MaintenanceForm 
               vehicleId={selectedVehicleId}
               onSave={handleSaveMaintenance}
@@ -343,7 +257,6 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
-
       {viewHistoryVehicleId && (
         <div className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-md p-4 flex items-center justify-center animate-in fade-in duration-300">
           <MaintenanceHistoryModal 
@@ -352,7 +265,6 @@ const App: React.FC = () => {
           />
         </div>
       )}
-
       {updatingUsageVehicleId && (
         <div className="fixed inset-0 z-50 bg-gray-900/40 backdrop-blur-md p-4 flex items-center justify-center animate-in fade-in duration-300">
           <UsageUpdateModal 
@@ -363,28 +275,15 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Bottom Nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t px-6 py-3 flex justify-around items-center z-40 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.08)]">
-        <button 
-          onClick={() => setActiveTab('dashboard')}
-          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'dashboard' ? 'text-blue-600 scale-110' : 'text-gray-400'}`}
-        >
-          <LayoutDashboard size={24} fill={activeTab === 'dashboard' ? 'currentColor' : 'none'} />
-          <span className="text-[10px] font-bold uppercase tracking-widest">Dash</span>
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t px-6 py-3 flex justify-around items-center z-40 pb-safe">
+        <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center gap-1 ${activeTab === 'dashboard' ? 'text-blue-600' : 'text-gray-400'}`}>
+          <LayoutDashboard size={24} /><span className="text-[10px] font-bold uppercase">Dash</span>
         </button>
-        <button 
-          onClick={() => setActiveTab('fleet')}
-          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'fleet' ? 'text-blue-600 scale-110' : 'text-gray-400'}`}
-        >
-          <Truck size={24} fill={activeTab === 'fleet' ? 'currentColor' : 'none'} />
-          <span className="text-[10px] font-bold uppercase tracking-widest">Flotta</span>
+        <button onClick={() => setActiveTab('fleet')} className={`flex flex-col items-center gap-1 ${activeTab === 'fleet' ? 'text-blue-600' : 'text-gray-400'}`}>
+          <Truck size={24} /><span className="text-[10px] font-bold uppercase">Flotta</span>
         </button>
-        <button 
-          onClick={() => setActiveTab('ai')}
-          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'ai' ? 'text-blue-600 scale-110' : 'text-gray-400'}`}
-        >
-          <Sparkles size={24} fill={activeTab === 'ai' ? 'currentColor' : 'none'} />
-          <span className="text-[10px] font-bold uppercase tracking-widest">Fleet AI</span>
+        <button onClick={() => setActiveTab('ai')} className={`flex flex-col items-center gap-1 ${activeTab === 'ai' ? 'text-blue-600' : 'text-gray-400'}`}>
+          <Sparkles size={24} /><span className="text-[10px] font-bold uppercase">AI</span>
         </button>
       </nav>
     </div>
