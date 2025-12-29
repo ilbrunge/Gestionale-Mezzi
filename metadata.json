@@ -1,0 +1,7 @@
+{
+  "name": "FleetManager Pro",
+  "description": "Un gestionale avanzato per la manutenzione dei mezzi aziendali con integrazione AI per previsioni e ottimizzazione.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
